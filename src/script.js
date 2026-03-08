@@ -7,11 +7,14 @@ import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import portalVertex from "./shaders/portal/vertex.glsl";
 import portalFragment from "./shaders/portal/fragment.glsl";
 
-import * as CANNON from "cannon-es";
+import { RapierPhysics } from "three/examples/jsm/Addons.js";
+
 import gsap from "gsap";
 
 /** vars */
 let arista = 5;
+let physics;
+const objsToUpte = [];
 /**
  * Sizes
  */
@@ -43,8 +46,6 @@ const scene = new THREE.Scene();
 /* models */
 const gltfLoader = new GLTFLoader();
 
-/** RAPIER PHYSICS */
-const objsToUpte = [];
 /** ---------- STUFF ----------- */
 /** LIGHTS */
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
@@ -103,6 +104,8 @@ cinemaRoom.material = new THREE.MeshStandardMaterial({
   metalness: 0,
 });
 
+cinemaRoom.userData.physics = { mass: 0 };
+
 scene.add(cinemaRoom);
 
 // cat
@@ -114,22 +117,11 @@ let cat = new THREE.Group();
 gltfLoader.load("/models/cat.glb", (gltf) => {
   gltf.scene.scale.set(0.125, 0.125, 0.125);
   cat = gltf.scene;
-  createCat(cat, new THREE.Vector3(0, 1, 0));
+  createCat(box, new THREE.Vector3(0, 1, 0));
 });
 
-const createCat = (model, position, radius = 0.2) => {
-  model.position.copy(position);
-  scene.add(model);
-
-  // physics
-
-  // save to update
-  objsToUpte.push({
-    model,
-    //body,
-  });
-};
-
+/** RAPIER PHYSICS */
+initPhysics();
 /** BUTTONS */
 const catButton = document.createElement("button");
 catButton.style.width = "100px";
@@ -194,8 +186,7 @@ const tick = () => {
   const elapsedTime = clock.getElapsedTime();
   // shaders
   portal.material.uniforms.uTime.value = elapsedTime;
-  // update physics world
-
+  // update physics
   // controls
   controls.update();
   // render
@@ -204,4 +195,30 @@ const tick = () => {
   window.requestAnimationFrame(tick);
 };
 
+/** RAPIER PHYSICS */
+async function initPhysics() {
+  physics = await RapierPhysics();
+
+  // add floor
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(arista, arista, arista),
+    new THREE.MeshBasicMaterial(),
+  );
+
+  // add scene
+  physics.addScene(scene);
+  console.log(physics);
+
+  //createCat(cat.clone(), new THREE.Vector3(0, 0, 0));
+}
+
+function createCat(model, position) {
+  model.position.copy(position);
+  scene.add(model);
+  // physics
+  model.userData.physics = { mass: 1, restitution: 0 };
+  //if (physics) physics.addMesh(model, 1, 0.5);
+}
+
+/* RUN */
 tick();
