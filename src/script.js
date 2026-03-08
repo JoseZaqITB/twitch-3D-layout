@@ -1,24 +1,24 @@
 import * as THREE from "three";
+import { Brush, SUBTRACTION, Evaluator } from "three-bvh-csg";
 
-/**
- * Scene
- *   */
-const scene = new THREE.Scene();
-/** --- STUFF --- */
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-/* MESH */
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-const mesh = new THREE.Mesh(geometry, material);
-scene.add(mesh);
+import { GLTFLoader } from "three/examples/jsm/Addons.js";
+import portalVertex from "./shaders/portal/vertex.glsl";
+import portalFragment from "./shaders/portal/fragment.glsl";
 
-/* --- FINISH STUFF */
+import * as CANNON from "cannon-es";
+import gsap from "gsap";
+
+/** vars */
+let arista = 5;
 /**
  * Sizes
  */
 const sizes = {
   width: window.innerWidth,
   height: window.innerHeight,
+  ratio: window.innerHeight / window.innerWidth,
 };
 
 window.addEventListener("resize", () => {
@@ -35,6 +35,114 @@ window.addEventListener("resize", () => {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
+/**
+ * Scene
+ *   */
+const scene = new THREE.Scene();
+
+/* models */
+const gltfLoader = new GLTFLoader();
+
+/** RAPIER PHYSICS */
+const objsToUpte = [];
+/** ---------- STUFF ----------- */
+/** LIGHTS */
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(0, -0.1, 1);
+scene.add(directionalLight);
+
+/** MATERIALS */
+const portalLightMaterial = new THREE.ShaderMaterial({
+  vertexShader: portalVertex,
+  fragmentShader: portalFragment,
+  uniforms: {
+    uTime: new THREE.Uniform(0),
+    uColorStart: new THREE.Uniform(new THREE.Color("#bbbbff")),
+    uColorEnd: new THREE.Uniform(new THREE.Color("#eeeeff")),
+  },
+});
+
+/* MESH */
+
+// portal
+const portalGeometry = new THREE.CircleGeometry(0.5, 9);
+const portal = new THREE.Mesh(portalGeometry, portalLightMaterial);
+
+portal.scale.set(0.01, 0.01, 0.01);
+portal.rotation.y = (Math.PI * 2) / 5;
+portal.position.x = -2.3;
+portal.position.y = -0.9;
+
+scene.add(portal);
+
+gsap.to(portal.scale, { duration: 1, delay: 0.5, x: 1 });
+gsap.to(portal.scale, { duration: 1, delay: 0.5, y: 1 });
+gsap.to(portal.scale, { duration: 1, delay: 0.5, z: 1 });
+// Cinema Room
+const evaluator = new Evaluator();
+const cinemaFill = new Brush(
+  new THREE.BoxGeometry(arista, arista * sizes.ratio, arista),
+);
+const cinemaHole = new Brush(
+  new THREE.BoxGeometry(
+    arista * 0.98,
+    arista * 0.95 * sizes.ratio,
+    arista * 1.25,
+  ),
+);
+
+const cinemaRoom = evaluator.evaluate(cinemaFill, cinemaHole, SUBTRACTION);
+cinemaRoom.geometry.clearGroups();
+
+cinemaRoom.material = new THREE.MeshStandardMaterial({
+  color: 0xeeeefa,
+  roughness: 0.7,
+  metalness: 0,
+});
+
+scene.add(cinemaRoom);
+
+// cat
+const box = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshBasicMaterial(),
+);
+let cat = new THREE.Group();
+gltfLoader.load("/models/cat.glb", (gltf) => {
+  gltf.scene.scale.set(0.125, 0.125, 0.125);
+  cat = gltf.scene;
+  createCat(cat, new THREE.Vector3(0, 1, 0));
+});
+
+const createCat = (model, position, radius = 0.2) => {
+  model.position.copy(position);
+  scene.add(model);
+
+  // physics
+
+  // save to update
+  objsToUpte.push({
+    model,
+    //body,
+  });
+};
+
+/** BUTTONS */
+const catButton = document.createElement("button");
+catButton.style.width = "100px";
+catButton.style.height = "16px";
+catButton.style.position = "absolute";
+
+catButton.onclick = () =>
+  createCat(cat.clone(), 0.05, new THREE.Vector3(0, 0, 0));
+
+document.body.appendChild(catButton);
+
+/* --- FINISH STUFF */
+
 /* CANVAS */
 const canvas = document.querySelector("canvas.webgl");
 
@@ -42,13 +150,23 @@ const canvas = document.querySelector("canvas.webgl");
  * Camera
  */
 // Base camera
-const camera = new THREE.PerspectiveCamera(
-  75,
+const camera = new THREE.OrthographicCamera(
+  -1,
+  1,
+  1 * sizes.ratio,
+  -1 * sizes.ratio,
+  0.01,
+  1000,
+);
+camera.zoom = 0.4;
+camera.position.z = 10;
+camera.updateProjectionMatrix();
+/* const camera = new THREE.PerspectiveCamera(
+  50,
   sizes.width / sizes.height,
   0.1,
   100,
-);
-camera.position.z = 6;
+); */
 scene.add(camera);
 
 /**
@@ -63,12 +181,23 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap; */
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+/**  CONTROLS */
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+
 /**
  * Animate
  */
 const clock = new THREE.Clock();
 
 const tick = () => {
+  const elapsedTime = clock.getElapsedTime();
+  // shaders
+  portal.material.uniforms.uTime.value = elapsedTime;
+  // update physics world
+
+  // controls
+  controls.update();
   // render
   renderer.render(scene, camera);
   // Call tick again on the next frame
