@@ -109,15 +109,10 @@ cinemaRoom.userData.physics = { mass: 0 };
 scene.add(cinemaRoom);
 
 // cat
-const box = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 1, 1),
-  new THREE.MeshBasicMaterial(),
-);
 let cat = new THREE.Group();
 gltfLoader.load("/models/cat.glb", (gltf) => {
-  gltf.scene.scale.set(0.125, 0.125, 0.125);
-  cat = gltf.scene;
-  createCat(box, new THREE.Vector3(0, 1, 0));
+  cat = gltf.scene.children[0];
+  createCat(cat, new THREE.Vector3(0, 0, 0));
 });
 
 /** RAPIER PHYSICS */
@@ -198,12 +193,6 @@ const tick = () => {
 /** RAPIER PHYSICS */
 async function initPhysics() {
   physics = await RapierPhysics();
-
-  // add floor
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(arista, arista, arista),
-    new THREE.MeshBasicMaterial(),
-  );
 
   // add scene
   physics.addScene(scene);
