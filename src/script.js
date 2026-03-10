@@ -76,12 +76,6 @@ portal.scale.set(0.01, 0.01, 0.01);
 portal.rotation.y = (Math.PI * 2) / 5;
 portal.position.x = -2.3;
 portal.position.y = -0.9;
-
-scene.add(portal);
-
-gsap.to(portal.scale, { duration: 1, delay: 0.5, x: 1 });
-gsap.to(portal.scale, { duration: 1, delay: 0.5, y: 1 });
-gsap.to(portal.scale, { duration: 1, delay: 0.5, z: 1 });
 // Cinema Room
 const evaluator = new Evaluator();
 const cinemaFill = new Brush(
@@ -112,7 +106,6 @@ scene.add(cinemaRoom);
 let cat = new THREE.Group();
 gltfLoader.load("/models/cat.glb", (gltf) => {
   cat = gltf.scene.children[0];
-  createCat(cat, new THREE.Vector3(0, 0, 0));
 });
 
 /** RAPIER PHYSICS */
@@ -123,8 +116,7 @@ catButton.style.width = "100px";
 catButton.style.height = "16px";
 catButton.style.position = "absolute";
 
-catButton.onclick = () =>
-  createCat(cat.clone(), 0.05, new THREE.Vector3(0, 0, 0));
+catButton.onclick = handleClick;
 
 document.body.appendChild(catButton);
 
@@ -193,20 +185,60 @@ const tick = () => {
 /** RAPIER PHYSICS */
 async function initPhysics() {
   physics = await RapierPhysics();
-
   // add scene
   physics.addScene(scene);
-  console.log(physics);
-
   //createCat(cat.clone(), new THREE.Vector3(0, 0, 0));
 }
 
 function createCat(model, position) {
+  const impulse = 5;
+
   model.position.copy(position);
   scene.add(model);
   // physics
   model.userData.physics = { mass: 1, restitution: 0 };
-  //if (physics) physics.addMesh(model, 1, 0.5);
+  if (physics) {
+    physics.addMesh(model, 1, 0.5);
+    physics.setMeshVelocity(model, new THREE.Vector3(impulse, 0, 0));
+
+    //console.log(physics.world.bodies.map);
+  }
+}
+
+function createPortal(portalDuration) {
+  scene.add(portal);
+
+  gsap.to(portal.scale, { duration: 1, x: 1 });
+  gsap.to(portal.scale, { duration: 1, y: 1 });
+  gsap.to(portal.scale, { duration: 1, z: 1 });
+
+  gsap.to(portal.scale, {
+    duration: 1,
+    delay: portalDuration / 1000 - 1,
+    x: 0.01,
+  });
+  gsap.to(portal.scale, {
+    duration: 1,
+    delay: portalDuration / 1000 - 1,
+    y: 0.01,
+  });
+  gsap.to(portal.scale, {
+    duration: 1,
+    delay: portalDuration / 1000 - 1,
+    z: 0.01,
+  });
+  // set timeout
+  setTimeout(() => {
+    scene.remove(portal);
+  }, portalDuration);
+}
+
+function handleClick() {
+  // portal
+  const portalDuration = 5000;
+  createPortal(portalDuration);
+  // cat
+  setTimeout(() => createCat(cat.clone(), portal.position), portalDuration / 2);
 }
 
 /* RUN */
