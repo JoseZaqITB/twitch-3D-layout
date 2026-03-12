@@ -64,18 +64,19 @@ const portalLightMaterial = new THREE.ShaderMaterial({
     uColorStart: new THREE.Uniform(new THREE.Color("#bbbbff")),
     uColorEnd: new THREE.Uniform(new THREE.Color("#eeeeff")),
   },
+  transparent: true,
 });
 
 /* MESH */
 
 // portal
-const portalGeometry = new THREE.CircleGeometry(0.5, 9);
+const portalGeometry = new THREE.CircleGeometry(0.5, 32);
 const portal = new THREE.Mesh(portalGeometry, portalLightMaterial);
 
 portal.scale.set(0.01, 0.01, 0.01);
 portal.rotation.y = (Math.PI * 2) / 5;
-portal.position.x = -2.3;
-portal.position.y = -0.9;
+portal.position.x = -2.25;
+portal.position.y = -(5 * sizes.ratio) / 2 + 0.6;
 // Cinema Room
 const evaluator = new Evaluator();
 const cinemaFill = new Brush(
