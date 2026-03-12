@@ -3,7 +3,7 @@ import { Brush, SUBTRACTION, Evaluator } from "three-bvh-csg";
 
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-import { GLTFLoader } from "three/examples/jsm/Addons.js";
+import { BufferGeometryUtils, GLTFLoader } from "three/examples/jsm/Addons.js";
 import portalVertex from "./shaders/portal/vertex.glsl";
 import portalFragment from "./shaders/portal/fragment.glsl";
 
@@ -77,32 +77,44 @@ portal.scale.set(0.01, 0.01, 0.01);
 portal.rotation.y = (Math.PI * 2) / 5;
 portal.position.x = -2.25;
 portal.position.y = -(5 * sizes.ratio) / 2 + 0.6;
-// Cinema Room
-const evaluator = new Evaluator();
-const cinemaFill = new Brush(
-  new THREE.BoxGeometry(arista, arista * sizes.ratio, arista),
-);
-const cinemaHole = new Brush(
-  new THREE.BoxGeometry(
-    arista * 0.98,
-    arista * 0.95 * sizes.ratio,
-    arista * 1.25,
-  ),
+// Cinema Floor
+const cinemaFloor = new THREE.Mesh(
+  new THREE.BoxGeometry(arista, 0.1, 1),
+  new THREE.MeshStandardMaterial({
+    color: 0xeeeefa,
+    roughness: 0.7,
+    metalness: 0,
+  }),
 );
 
-const cinemaRoom = evaluator.evaluate(cinemaFill, cinemaHole, SUBTRACTION);
-cinemaRoom.geometry.clearGroups();
+cinemaFloor.userData.physics = { mass: 0 };
+cinemaFloor.position.y = -(arista * sizes.ratio) / 2 + 0.1 / 2;
+scene.add(cinemaFloor);
+// walls
+const wall1 = new THREE.PlaneGeometry(arista, arista * sizes.ratio);
+const wall2 = wall1.clone();
 
-cinemaRoom.material = new THREE.MeshStandardMaterial({
-  color: 0xeeeefa,
-  roughness: 0.7,
-  metalness: 0,
-});
+const wall3 = new THREE.PlaneGeometry(1, arista * sizes.ratio);
+wall3.rotateY(-Math.PI / 2);
+const wall4 = wall3.clone();
 
-cinemaRoom.userData.physics = { mass: 0 };
+wall1.translate(0, 0, 1 * 0.5);
+wall2.translate(0, 0, -1 * 0.5);
 
-scene.add(cinemaRoom);
+wall3.translate(arista / 2, 0, 0);
+wall4.translate(-arista / 2, 0, 0);
 
+const wallsGeometry = BufferGeometryUtils.mergeGeometries([
+  wall1,
+  wall2,
+  wall3,
+  wall4,
+]);
+const walls = new THREE.Mesh(wallsGeometry);
+walls.userData.physics = { mass: 0 };
+walls.visible = false;
+
+scene.add(walls);
 // cat
 let cat = new THREE.Group();
 gltfLoader.load("/models/cat.glb", (gltf) => {
@@ -140,6 +152,7 @@ const camera = new THREE.OrthographicCamera(
 );
 camera.zoom = 0.4;
 camera.position.z = 10;
+camera.position.y = 2;
 camera.updateProjectionMatrix();
 /* const camera = new THREE.PerspectiveCamera(
   50,
